@@ -75,3 +75,17 @@ async def browse_directories(path: Optional[str] = None):
         folders=folders,
         quick_locations=quick_locations,
     )
+
+
+@router.get("/ollama-status")
+async def get_ollama_status():
+    """Returns the current Ollama installation, daemon execution status, and downloaded models."""
+    from backend.app.services.ollama_service import OllamaService
+    return await OllamaService.get_full_status()
+
+
+@router.post("/ollama-start")
+async def start_ollama():
+    """Triggers startup of the local Ollama daemon if not currently running."""
+    from backend.app.services.ollama_service import OllamaService
+    return await OllamaService.ensure_running_on_startup()

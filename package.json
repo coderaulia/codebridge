@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AI-Powered Code Architecture Interpreter and Non-Technical Translation Engine",
   "scripts": {
+    "start": "./start.sh",
     "dev:backend": "PYTHONPATH=. backend/.venv/bin/python backend/run.py",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev": "concurrently -n \"backend,frontend\" -c \"magenta.bold,cyan.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",

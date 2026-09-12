@@ -51,8 +51,14 @@ npm install
 
 ### Running CodeBridge
 
-Launch both the FastAPI backend (`http://127.0.0.1:8000`) and the Vite frontend (`http://localhost:5173`) concurrently:
+#### Option 1: All-in-One Automated Launcher (Recommended)
+CodeBridge provides an intelligent startup script that verifies Python, Node, and Ollama, auto-launches Ollama if available, checks dependencies, cleans stale ports, and boots both services:
 
+```bash
+./start.sh
+```
+
+#### Option 2: Concurrently via NPM
 ```bash
 npm run dev
 ```

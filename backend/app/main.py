@@ -14,11 +14,16 @@ from backend.app.api.routes_settings import router as settings_router
 from backend.app.api.routes_system import router as system_router
 
 
+from backend.app.services.ollama_service import OllamaService
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initializes SQLite database tables and seeds default provider on startup."""
+    """Initializes SQLite database tables, seeds default provider, and ensures Ollama is running if installed."""
     await init_db()
+    await OllamaService.ensure_running_on_startup()
     yield
+    OllamaService.shutdown_if_spawned()
 
 
 app = FastAPI(
