@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+backend/.venv/
+.venv/
+venv/
+
+# Local databases and runtime data
+data/
+backend/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Build outputs
+dist/
+frontend/dist/
+build/
+
+# Python cache & test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
