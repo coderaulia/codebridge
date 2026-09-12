@@ -1,4 +1,4 @@
-# CodeBridge V1
+# CodeBridge - Local Codebase Analyzer by Vanaila
 
 **AI Code Architecture Interpreter & Plain-English Translation Studio**
 

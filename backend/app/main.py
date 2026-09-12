@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CodeBridge V1 API",
+    title="CodeBridge - Local Codebase Analyzer by Vanaila",
     description="Deterministic AST parsing and AI-powered non-technical translation engine.",
     version="1.0.0",
     lifespan=lifespan,

@@ -21,8 +21,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenIngest, onOpenExecutiveSum
         <div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-gray-100 tracking-tight text-sm">CodeBridge</span>
-            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              V1
+            <span className="text-[11px] text-gray-400 hidden sm:inline">Local Codebase Analyzer</span>
+            <span className="text-[10px] font-medium text-purple-300 bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-800/50">
+              by Vanaila
             </span>
           </div>
           <div className="text-xs text-gray-400 truncate max-w-[280px]">
