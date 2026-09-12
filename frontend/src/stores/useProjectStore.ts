@@ -11,8 +11,10 @@ interface ProjectState {
   currentFile: FileDetail | null;
   selectedRange: { startLine: number; endLine: number; code: string } | null;
   isLoading: boolean;
+  isBackendConnected: boolean;
   error: string | null;
 
+  checkBackendHealth: () => Promise<boolean>;
   fetchProjects: () => Promise<void>;
   selectProject: (projectId: string) => Promise<void>;
   selectFile: (fileId: string) => Promise<void>;
@@ -31,19 +33,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   currentFile: null,
   selectedRange: null,
   isLoading: false,
+  isBackendConnected: true,
   error: null,
+
+  checkBackendHealth: async () => {
+    try {
+      const res = await axios.get('/api/health');
+      if (res.data?.status === 'ok') {
+        set({ isBackendConnected: true, error: null });
+        await get().fetchProjects();
+        return true;
+      }
+    } catch {
+      set({ isBackendConnected: false });
+    }
+    return false;
+  },
 
   fetchProjects: async () => {
     try {
       set({ isLoading: true, error: null });
       const res = await axios.get<Project[]>('/api/projects');
-      set({ projects: res.data, isLoading: false });
+      set({ projects: res.data, isLoading: false, isBackendConnected: true });
       // If there are projects and none currently selected, auto-select the first one
       if (res.data.length > 0 && !get().currentProject) {
         await get().selectProject(res.data[0].id);
       }
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      const isConnectionError =
+        err.code === 'ERR_NETWORK' ||
+        err.response?.status === 502 ||
+        err.message?.includes('Network Error') ||
+        err.message?.includes('ECONNREFUSED');
+      set({
+        error: err.message,
+        isLoading: false,
+        isBackendConnected: isConnectionError ? false : get().isBackendConnected,
+      });
     }
   },
 

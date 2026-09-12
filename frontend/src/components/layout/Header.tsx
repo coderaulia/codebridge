@@ -1,13 +1,18 @@
-import { Network, Settings, Plus, Layers } from 'lucide-react';
+import { Network, Settings, Plus, Layers, HelpCircle } from 'lucide-react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 interface HeaderProps {
   onOpenIngest: () => void;
   onOpenExecutiveSummary: () => void;
+  onOpenTour: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenIngest, onOpenExecutiveSummary }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenIngest,
+  onOpenExecutiveSummary,
+  onOpenTour,
+}) => {
   const { settings, setSettingsOpen } = useSettingsStore();
   const { currentProject, totalFiles, totalSymbols } = useProjectStore();
 
@@ -44,6 +49,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenIngest, onOpenExecutiveSum
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenTour}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#21262d] hover:bg-[#30363d] text-gray-300 border border-[#30363d] transition-colors"
+          title="Open Onboarding Guide & Tour"
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
+          <span>Quick Tour</span>
+        </button>
+
         {currentProject && (
           <button
             onClick={onOpenExecutiveSummary}
