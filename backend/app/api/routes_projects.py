@@ -34,23 +34,31 @@ class ProjectDetailResponse(BaseModel):
 
 @router.get("", response_model=List[Project])
 async def list_projects():
-    """Returns all ingested projects."""
+    """Returns all ingested projects without redundant duplicates."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("SELECT * FROM projects ORDER BY created_at DESC")
         rows = await cursor.fetchall()
-        return [
-            Project(
-                id=r["id"],
-                name=r["name"],
-                source_type=r["source_type"],
-                source_path=r["source_path"],
-                executive_summary=r["executive_summary"],
-                created_at=r["created_at"],
-                updated_at=r["updated_at"],
+        
+        seen_keys = set()
+        projects = []
+        for r in rows:
+            key = (r["source_type"], r["name"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            projects.append(
+                Project(
+                    id=r["id"],
+                    name=r["name"],
+                    source_type=r["source_type"],
+                    source_path=r["source_path"],
+                    executive_summary=r["executive_summary"],
+                    created_at=r["created_at"],
+                    updated_at=r["updated_at"],
+                )
             )
-            for r in rows
-        ]
+        return projects
 
 
 @router.post("/local", response_model=dict)
@@ -164,6 +172,12 @@ async def get_project(project_id: str):
 async def delete_project(project_id: str):
     """Deletes a project and all associated files and symbols."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON;")
+        await db.execute(
+            "DELETE FROM symbols WHERE file_id IN (SELECT id FROM files WHERE project_id = ?)",
+            (project_id,),
+        )
+        await db.execute("DELETE FROM files WHERE project_id = ?", (project_id,))
         await db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
         await db.commit()
     return {"success": True}

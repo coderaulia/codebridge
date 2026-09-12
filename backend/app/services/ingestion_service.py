@@ -111,18 +111,36 @@ class IngestionService:
                         "Please use the Folder Opener ('Browse...') button to select an existing folder."
                     )
 
-        proj_id = f"proj_{uuid.uuid4().hex[:10]}"
         name = project_name or path.name
 
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """
-                INSERT INTO projects (id, name, source_type, source_path)
-                VALUES (?, ?, 'local', ?)
-                """,
-                (proj_id, name, str(path)),
+            cursor = await db.execute(
+                "SELECT id FROM projects WHERE source_path = ? OR (name = ? AND source_type = 'local')",
+                (str(path), name),
             )
-            await db.commit()
+            existing = await cursor.fetchone()
+            if existing:
+                proj_id = existing[0]
+                await db.execute(
+                    "UPDATE projects SET name = ?, source_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (name, str(path), proj_id),
+                )
+                await db.execute(
+                    "DELETE FROM symbols WHERE file_id IN (SELECT id FROM files WHERE project_id = ?)",
+                    (proj_id,),
+                )
+                await db.execute("DELETE FROM files WHERE project_id = ?", (proj_id,))
+                await db.commit()
+            else:
+                proj_id = f"proj_{uuid.uuid4().hex[:10]}"
+                await db.execute(
+                    """
+                    INSERT INTO projects (id, name, source_type, source_path)
+                    VALUES (?, ?, 'local', ?)
+                    """,
+                    (proj_id, name, str(path)),
+                )
+                await db.commit()
 
         await IngestionService._index_directory_files(proj_id, path)
         return proj_id
@@ -168,16 +186,35 @@ class IngestionService:
         # Locate root directory inside extracted zip (GitHub zips typically have top-level dir owner-repo-hash)
         extracted_roots = [d for d in target_dir.iterdir() if d.is_dir()]
         root_dir = extracted_roots[0] if extracted_roots else target_dir
+        repo_name = f"{owner}/{repo}"
 
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """
-                INSERT INTO projects (id, name, source_type, source_path)
-                VALUES (?, ?, 'github', ?)
-                """,
-                (proj_id, f"{owner}/{repo}", str(root_dir)),
+            cursor = await db.execute(
+                "SELECT id FROM projects WHERE name = ? AND source_type = 'github'",
+                (repo_name,),
             )
-            await db.commit()
+            existing = await cursor.fetchone()
+            if existing:
+                proj_id = existing[0]
+                await db.execute(
+                    "UPDATE projects SET source_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (str(root_dir), proj_id),
+                )
+                await db.execute(
+                    "DELETE FROM symbols WHERE file_id IN (SELECT id FROM files WHERE project_id = ?)",
+                    (proj_id,),
+                )
+                await db.execute("DELETE FROM files WHERE project_id = ?", (proj_id,))
+                await db.commit()
+            else:
+                await db.execute(
+                    """
+                    INSERT INTO projects (id, name, source_type, source_path)
+                    VALUES (?, ?, 'github', ?)
+                    """,
+                    (proj_id, repo_name, str(root_dir)),
+                )
+                await db.commit()
 
         await IngestionService._index_directory_files(proj_id, root_dir)
         return proj_id

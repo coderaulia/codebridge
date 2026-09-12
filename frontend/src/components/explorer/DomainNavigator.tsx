@@ -105,19 +105,25 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
           </div>
         </div>
 
-        {projects.length > 1 && (
-          <select
-            value={currentProject?.id || ''}
-            onChange={(e) => selectProject(e.target.value)}
-            className="w-full px-2.5 py-1 text-xs rounded bg-[#0d1117] border border-[#30363d] text-gray-200 focus:outline-none focus:border-purple-500"
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.source_type})
-              </option>
-            ))}
-          </select>
-        )}
+        {(() => {
+          const uniqueProjects = projects.filter(
+            (p, idx, arr) => arr.findIndex((item) => item.id === p.id || (item.name === p.name && item.source_type === p.source_type)) === idx
+          );
+          if (uniqueProjects.length <= 1) return null;
+          return (
+            <select
+              value={currentProject?.id || ''}
+              onChange={(e) => selectProject(e.target.value)}
+              className="w-full px-2.5 py-1 text-xs rounded bg-[#0d1117] border border-[#30363d] text-gray-200 focus:outline-none focus:border-purple-500"
+            >
+              {uniqueProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.source_type})
+                </option>
+              ))}
+            </select>
+          );
+        })()}
 
         {/* Filter Input */}
         <div className="relative mt-2">
