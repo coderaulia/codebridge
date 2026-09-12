@@ -16,7 +16,12 @@ import { useProjectStore } from '../../stores/useProjectStore';
 import { MermaidViewer } from './MermaidViewer';
 import { PlainEnglishChat } from './PlainEnglishChat';
 
-export const TranslationPanel: React.FC = () => {
+interface TranslationPanelProps {
+  width?: number;
+  className?: string;
+}
+
+export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, className = '' }) => {
   const { translation, streamingText, isTranslating, activeTab, setActiveTab } = useTranslationStore();
   const { selectedRange, currentFile } = useProjectStore();
   const [copied, setCopied] = React.useState(false);
@@ -36,7 +41,12 @@ export const TranslationPanel: React.FC = () => {
   };
 
   return (
-    <aside className="w-96 bg-[#0d1117] flex flex-col h-full border-l border-[#30363d] select-none">
+    <aside
+      style={width ? { width: `${width}px` } : undefined}
+      className={`bg-[#0d1117] flex flex-col h-full border-l border-[#30363d] select-none shrink-0 ${
+        width ? '' : 'w-full md:w-96'
+      } ${className}`}
+    >
       {/* Panel Header */}
       <div className="h-10 bg-[#161b22] border-b border-[#30363d] px-3 flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-gray-200">

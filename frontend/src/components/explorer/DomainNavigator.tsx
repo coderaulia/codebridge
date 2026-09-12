@@ -12,7 +12,12 @@ import {
 import { useProjectStore } from '../../stores/useProjectStore';
 import type { FileRecord } from '../../types/project';
 
-export const DomainNavigator: React.FC = () => {
+interface DomainNavigatorProps {
+  onClose?: () => void;
+  className?: string;
+}
+
+export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, className = '' }) => {
   const {
     projects,
     currentProject,
@@ -64,7 +69,9 @@ export const DomainNavigator: React.FC = () => {
     .filter((d) => d.files.length > 0);
 
   return (
-    <aside className="w-80 bg-[#0d1117] border-r border-[#30363d] flex flex-col h-full select-none">
+    <aside
+      className={`shrink-0 w-72 lg:w-80 min-w-[280px] max-w-[320px] bg-[#0d1117] border-r border-[#30363d] flex flex-col h-full select-none ${className}`}
+    >
       {/* Project Switcher Bar */}
       <div className="p-3 border-b border-[#30363d] bg-[#161b22]">
         <div className="flex items-center justify-between gap-2 mb-2">
@@ -72,19 +79,30 @@ export const DomainNavigator: React.FC = () => {
             <FolderTree className="w-3.5 h-3.5 text-purple-400" />
             <span>Repository Domain Map</span>
           </label>
-          {currentProject && (
-            <button
-              onClick={() => {
-                if (confirm(`Remove project '${currentProject.name}' from CodeBridge?`)) {
-                  deleteProject(currentProject.id);
-                }
-              }}
-              className="text-gray-500 hover:text-red-400 p-1 rounded transition-colors"
-              title="Delete project"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {currentProject && (
+              <button
+                onClick={() => {
+                  if (confirm(`Remove project '${currentProject.name}' from CodeBridge?`)) {
+                    deleteProject(currentProject.id);
+                  }
+                }}
+                className="text-gray-500 hover:text-red-400 p-1 rounded transition-colors"
+                title="Delete project"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-200 p-1 rounded transition-colors lg:hidden"
+                title="Close Domain Explorer"
+              >
+                <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+              </button>
+            )}
+          </div>
         </div>
 
         {projects.length > 1 && (

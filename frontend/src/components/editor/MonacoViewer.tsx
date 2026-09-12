@@ -86,7 +86,7 @@ export const MonacoViewer: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 bg-[#0d1117] flex flex-col h-full border-r border-[#30363d] relative overflow-hidden">
+    <div className="flex-1 min-w-0 bg-[#0d1117] flex flex-col h-full relative overflow-hidden">
       {/* File Header / Toolbar */}
       <div className="h-10 bg-[#161b22] border-b border-[#30363d] px-4 flex items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 truncate">
