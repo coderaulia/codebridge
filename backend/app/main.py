@@ -11,6 +11,7 @@ from backend.app.api.routes_projects import router as projects_router
 from backend.app.api.routes_files import router as files_router
 from backend.app.api.routes_translate import router as translate_router
 from backend.app.api.routes_settings import router as settings_router
+from backend.app.api.routes_system import router as system_router
 
 
 @asynccontextmanager
@@ -41,6 +42,7 @@ app.include_router(projects_router)
 app.include_router(files_router)
 app.include_router(translate_router)
 app.include_router(settings_router)
+app.include_router(system_router)
 
 
 @app.get("/api/health")

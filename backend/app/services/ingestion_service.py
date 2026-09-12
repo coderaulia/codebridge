@@ -89,10 +89,27 @@ class IngestionService:
 
     @staticmethod
     async def ingest_local_directory(directory_path: str, project_name: Optional[str] = None) -> str:
-        """Ingests a directory from the local filesystem."""
-        path = Path(directory_path).resolve()
+        """Ingests a directory from the local filesystem with intelligent path resolution."""
+        raw_str = directory_path.strip()
+        expanded = os.path.expanduser(raw_str)
+        path = Path(expanded).resolve()
+
         if not path.exists() or not path.is_dir():
-            raise ValueError(f"Directory '{directory_path}' does not exist or is not a directory.")
+            # Try relative to home directory (e.g. user typed "Dev/myproject")
+            home_candidate = (Path.home() / raw_str).resolve()
+            if home_candidate.exists() and home_candidate.is_dir():
+                path = home_candidate
+            else:
+                # Try relative to current working directory
+                cwd_candidate = (Path.cwd() / raw_str).resolve()
+                if cwd_candidate.exists() and cwd_candidate.is_dir():
+                    path = cwd_candidate
+                else:
+                    raise ValueError(
+                        f"Directory not found: '{directory_path}'. "
+                        f"Checked '{path}' and '{home_candidate}'. "
+                        "Please use the Folder Opener ('Browse...') button to select an existing folder."
+                    )
 
         proj_id = f"proj_{uuid.uuid4().hex[:10]}"
         name = project_name or path.name

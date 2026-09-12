@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Folder, GitBranch, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { X, Folder, GitBranch, ArrowRight, Loader2, AlertCircle, FolderOpen } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { FolderBrowserDialog } from './FolderBrowserDialog';
 
 interface IngestModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const IngestModal: React.FC<IngestModalProps> = ({ isOpen, onClose }) => 
   const [githubUrl, setGithubUrl] = useState('');
   const [githubToken, setGithubToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { ingestLocal, ingestGithub } = useProjectStore();
@@ -91,18 +93,29 @@ export const IngestModal: React.FC<IngestModalProps> = ({ isOpen, onClose }) => 
             <>
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Absolute Directory Path
+                  Local Directory Path
                 </label>
-                <input
-                  type="text"
-                  placeholder="/home/user/projects/my-app"
-                  value={localPath}
-                  onChange={(e) => setLocalPath(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-md bg-[#0d1117] border border-[#30363d] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                  required
-                />
-                <p className="mt-1 text-[11px] text-gray-500">
-                  Scans local files, parses AST tokens, and categorizes folders into business domains.
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="/home/asw/Dev/... or Dev/myproject"
+                    value={localPath}
+                    onChange={(e) => setLocalPath(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs rounded-md bg-[#0d1117] border border-[#30363d] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500 font-mono"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsBrowserOpen(true)}
+                    className="px-3 py-2 text-xs font-medium rounded-md bg-[#21262d] hover:bg-[#30363d] text-purple-300 border border-[#30363d] flex items-center gap-1.5 transition-colors shrink-0 shadow-xs cursor-pointer"
+                    title="Open Folder Browser"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Browse...</span>
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  Click <strong>Browse...</strong> to pick any folder on your machine, or enter a path.
                 </p>
               </div>
 
@@ -112,12 +125,27 @@ export const IngestModal: React.FC<IngestModalProps> = ({ isOpen, onClose }) => 
                 </label>
                 <input
                   type="text"
-                  placeholder="Billing Service V2"
+                  placeholder="e.g. VanillaChat, Billing Service"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-md bg-[#0d1117] border border-[#30363d] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500"
                 />
               </div>
+
+              <FolderBrowserDialog
+                isOpen={isBrowserOpen}
+                initialPath={localPath || undefined}
+                onSelect={(selectedPath) => {
+                  setLocalPath(selectedPath);
+                  if (!projectName.trim()) {
+                    const parts = selectedPath.split('/').filter(Boolean);
+                    if (parts.length > 0) {
+                      setProjectName(parts[parts.length - 1]);
+                    }
+                  }
+                }}
+                onClose={() => setIsBrowserOpen(false)}
+              />
             </>
           ) : (
             <>
