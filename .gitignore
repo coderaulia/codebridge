@@ -16,6 +16,7 @@ backend/data/
 dist/
 frontend/dist/
 build/
+.logs/
 
 # Python cache & test artifacts
 __pycache__/
