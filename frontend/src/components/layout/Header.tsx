@@ -1,4 +1,4 @@
-import { Network, Settings, Plus, Layers, HelpCircle, PanelLeft } from 'lucide-react';
+import { Network, Settings, Plus, Layers, HelpCircle, PanelLeft, GitPullRequest, FileDown } from 'lucide-react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -6,6 +6,8 @@ interface HeaderProps {
   onOpenIngest: () => void;
   onOpenExecutiveSummary: () => void;
   onOpenTour: () => void;
+  onOpenDiff?: () => void;
+  onOpenExport?: () => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -14,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenIngest,
   onOpenExecutiveSummary,
   onOpenTour,
+  onOpenDiff,
+  onOpenExport,
   isSidebarOpen,
   onToggleSidebar,
 }) => {
@@ -74,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">Tour</span>
         </button>
 
-        {currentProject && (
+        {currentProject && onOpenExecutiveSummary && (
           <button
             onClick={onOpenExecutiveSummary}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-[#21262d] hover:bg-[#30363d] text-gray-200 border border-[#30363d] transition-colors"
@@ -82,6 +86,28 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Layers className="w-3.5 h-3.5 text-purple-400" />
             <span className="hidden md:inline">Briefing</span>
+          </button>
+        )}
+
+        {onOpenDiff && (
+          <button
+            onClick={onOpenDiff}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-[#21262d] hover:bg-[#30363d] text-gray-300 border border-[#30363d] transition-colors"
+            title="Translate PR or Git Diff in Plain English"
+          >
+            <GitPullRequest className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden md:inline">PR / Diff</span>
+          </button>
+        )}
+
+        {currentProject && onOpenExport && (
+          <button
+            onClick={onOpenExport}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-[#21262d] hover:bg-[#30363d] text-gray-300 border border-[#30363d] transition-colors"
+            title="Export Architecture Briefing (Markdown / PDF)"
+          >
+            <FileDown className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Export</span>
           </button>
         )}
 

@@ -41,14 +41,14 @@ EXCLUDED_EXTENSIONS = {
 }
 
 DOMAIN_PATTERNS = [
-    (["auth", "login", "jwt", "session", "user", "account"], "Identity & Access Control"),
-    (["billing", "payment", "stripe", "checkout", "subscription", "pricing", "order"], "Financial & Payment Processing"),
+    (["auth", "login", "jwt", "session", "user", "account", "security"], "Identity & Access Control"),
+    (["billing", "payment", "stripe", "checkout", "subscription", "pricing", "order", "invoice"], "Financial & Payment Processing"),
     (["notification", "email", "sms", "alert", "push", "mailer"], "Customer Communication & Alerts"),
-    (["schema", "model", "migration", "prisma", "database", "db", "repository"], "Data Persistence & Schemas"),
-    (["api", "routes", "endpoint", "controller", "handler", "v1", "v2"], "API & External Communication"),
+    (["schema", "model", "migration", "prisma", "database", "db", "repository", "entity", "entities", "dao"], "Data Persistence & Schemas"),
+    (["api", "routes", "endpoint", "controller", "handler", "handlers", "v1", "v2", "openapi", "swagger", "rpc"], "API & External Communication"),
     (["ui", "component", "page", "view", "layout", "modal"], "User Interface & Experience"),
     (["analytics", "telemetry", "metric", "logging", "audit"], "Analytics & Observability"),
-    (["service", "workflow", "worker", "job", "queue"], "Core Business Workflows"),
+    (["service", "services", "workflow", "worker", "job", "queue", "usecase", "domain"], "Core Business Workflows"),
 ]
 
 
@@ -66,12 +66,20 @@ def classify_file_type(path: Path) -> Tuple[str, str]:
     suffix = path.suffix.lower()
     name = path.name.lower()
 
+    if any(k in name for k in ("openapi", "swagger")) and suffix in (".json", ".yaml", ".yml"):
+        return ("schema", "openapi")
     if suffix in (".ts", ".tsx"):
         return ("schema" if "schema" in name or "model" in name else "code", "typescript")
     if suffix in (".js", ".jsx", ".mjs"):
         return ("schema" if "schema" in name or "model" in name else "code", "javascript")
     if suffix in (".py", ".pyw"):
         return ("schema" if "models" in name or "schema" in name else "code", "python")
+    if suffix == ".go":
+        return ("code", "go")
+    if suffix == ".rs":
+        return ("code", "rust")
+    if suffix == ".java":
+        return ("code", "java")
     if suffix == ".prisma":
         return ("schema", "prisma")
     if suffix == ".sql":
@@ -222,10 +230,33 @@ class IngestionService:
     @staticmethod
     async def _index_directory_files(project_id: str, root_dir: Path) -> None:
         """Walks directory, extracts symbols deterministically, and stores in SQLite."""
+        # Load .gitignore if present
+        spec = None
+        gitignore_file = root_dir / ".gitignore"
+        if gitignore_file.exists():
+            try:
+                import pathspec
+                raw_lines = gitignore_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+                spec = pathspec.PathSpec.from_lines("gitignore", raw_lines)
+            except Exception:
+                spec = None
+
         async with aiosqlite.connect(DB_PATH) as db:
             for dirpath, dirnames, filenames in os.walk(root_dir):
                 # Filter out excluded directories
-                dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith(".")]
+                filtered_dirs = []
+                for d in dirnames:
+                    if d in EXCLUDED_DIRS or d.startswith("."):
+                        continue
+                    if spec:
+                        try:
+                            rel_d = str((Path(dirpath) / d).relative_to(root_dir)) + "/"
+                            if spec.match_file(rel_d):
+                                continue
+                        except Exception:
+                            pass
+                    filtered_dirs.append(d)
+                dirnames[:] = filtered_dirs
 
                 for filename in filenames:
                     file_path = Path(dirpath) / filename
@@ -238,6 +269,10 @@ class IngestionService:
                         rel_path = str(file_path.relative_to(root_dir))
                     except ValueError:
                         rel_path = file_path.name
+
+                    # Check against .gitignore
+                    if spec and spec.match_file(rel_path):
+                        continue
 
                     try:
                         stat = file_path.stat()

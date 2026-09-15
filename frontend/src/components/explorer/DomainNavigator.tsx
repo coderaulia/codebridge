@@ -36,10 +36,10 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
   };
 
   const getFileBadge = (file: FileRecord) => {
-    if (file.file_type === 'schema' || file.language === 'prisma' || file.language === 'sql') {
+    if (file.file_type === 'schema' || file.language === 'prisma' || file.language === 'sql' || file.language === 'openapi') {
       return (
         <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-mono">
-          <Database className="w-2.5 h-2.5" /> schema
+          <Database className="w-2.5 h-2.5" /> {file.language === 'openapi' ? 'openapi' : 'schema'}
         </span>
       );
     }
@@ -47,6 +47,27 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
       return (
         <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1 font-mono">
           <FileText className="w-2.5 h-2.5" /> doc
+        </span>
+      );
+    }
+    if (file.language === 'go') {
+      return (
+        <span className="px-1.5 py-0.2 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 font-mono">
+          <FileCode className="w-2.5 h-2.5" /> go
+        </span>
+      );
+    }
+    if (file.language === 'rust') {
+      return (
+        <span className="px-1.5 py-0.2 rounded text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/30 flex items-center gap-1 font-mono">
+          <FileCode className="w-2.5 h-2.5" /> rust
+        </span>
+      );
+    }
+    if (file.language === 'java') {
+      return (
+        <span className="px-1.5 py-0.2 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30 flex items-center gap-1 font-mono">
+          <FileCode className="w-2.5 h-2.5" /> java
         </span>
       );
     }

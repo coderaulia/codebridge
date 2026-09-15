@@ -12,6 +12,7 @@ from backend.app.api.routes_files import router as files_router
 from backend.app.api.routes_translate import router as translate_router
 from backend.app.api.routes_settings import router as settings_router
 from backend.app.api.routes_system import router as system_router
+from backend.app.api.routes_diff import router as diff_router
 
 
 from backend.app.services.ollama_service import OllamaService
@@ -48,6 +49,7 @@ app.include_router(files_router)
 app.include_router(translate_router)
 app.include_router(settings_router)
 app.include_router(system_router)
+app.include_router(diff_router)
 
 
 @app.get("/api/health")

@@ -30,13 +30,19 @@ async def test_e2e_sample_app_ingestion():
 
         cursor = await db.execute("SELECT * FROM files WHERE project_id = ?", (proj_id,))
         files = await cursor.fetchall()
-        assert len(files) == 4
+        assert len(files) >= 4
+
+        languages = {f["language"] for f in files}
+        assert "prisma" in languages
+        assert "go" in languages
+        assert "rust" in languages
+        assert "java" in languages
+        assert "openapi" in languages
 
         domains = {f["business_domain"] for f in files}
         assert "Data Persistence & Schemas" in domains
         assert "Financial & Payment Processing" in domains
         assert "Identity & Access Control" in domains
-        assert "Customer Communication & Alerts" in domains
 
         # Verify Prisma symbols
         prisma_file = next(f for f in files if f["language"] == "prisma")

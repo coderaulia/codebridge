@@ -13,6 +13,7 @@ from backend.app.services.diagram_service import DiagramService
 from backend.app.parsers.prisma_parser import PrismaParser
 from backend.app.parsers.sql_parser import SqlParser
 from backend.app.parsers.drizzle_parser import DrizzleParser
+from backend.app.parsers.openapi_parser import OpenApiParser
 from backend.app.parsers.base import ParsedSymbol
 
 SYSTEM_PROMPT = """You are CodeBridge Translator, an expert AI software architect who translates complex code and database schemas into crystal-clear business English for product managers, executives, and non-technical stakeholders.
@@ -95,7 +96,7 @@ class TranslationService:
 
         # 3. Generate deterministic Mermaid diagram if applicable
         mermaid_code = ""
-        is_schema = file_row["file_type"] == "schema" or file_row["language"] in ("prisma", "sql")
+        is_schema = file_row["file_type"] == "schema" or file_row["language"] in ("prisma", "sql", "openapi")
 
         if is_schema:
             if file_row["language"] == "prisma":
@@ -104,10 +105,23 @@ class TranslationService:
             elif file_row["language"] == "sql":
                 models = SqlParser().parse_schema_models(selected_code)
                 mermaid_code = DiagramService.generate_schema_er_diagram(models)
+            elif file_row["language"] == "openapi" or "swagger" in file_row["relative_path"].lower() or "openapi" in file_row["relative_path"].lower():
+                models = OpenApiParser().parse_schema_models(selected_code)
+                mermaid_code = DiagramService.generate_schema_er_diagram(models)
             elif "table" in selected_code.lower():
                 models = DrizzleParser().parse_schema_models(selected_code)
                 mermaid_code = DiagramService.generate_schema_er_diagram(models)
-        elif symbol_row:
+        # 3. Perform cross-file journey tracing
+        from backend.app.services.trace_service import TraceService
+        trace_result = await TraceService.trace_file_dependencies(
+            project_id=file_row["project_id"],
+            file_id=file_id,
+            snippet=selected_code,
+        )
+
+        if not mermaid_code and trace_result.hops:
+            mermaid_code = trace_result.mermaid_sequence
+        elif not mermaid_code and symbol_row:
             sym_obj = ParsedSymbol(
                 name=symbol_row["name"],
                 symbol_type=symbol_row["symbol_type"],
@@ -123,12 +137,15 @@ Language: {file_row['language']}
 Business Domain: {file_row['business_domain']}
 Lines: {start_line}-{end_line}
 
+Architecture & Cross-File Context:
+{trace_result.summary_context}
+
 Code Block to Translate:
 ```{file_row['language']}
 {selected_code}
 ```
 
-Translate this into the 4-part CodeBridge structure in plain English. Include real-world analogies for non-technical readers."""
+Translate this into the 4-part CodeBridge structure in plain English. Incorporate the cross-file interactions so non-technical stakeholders understand how this component connects to other services and databases."""
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -190,6 +207,7 @@ Translate this into the 4-part CodeBridge structure in plain English. Include re
             "business_rule_tie_in": business_section or "Core business rule",
             "mermaid_diagram": mermaid_code,
             "raw_markdown": complete_text,
+            "cross_file_hops": [h.model_dump() for h in trace_result.hops],
             "cached": False,
         }
         yield f"data: {json.dumps({'event': 'complete', 'data': final_payload})}\n\n"

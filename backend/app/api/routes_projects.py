@@ -181,3 +181,20 @@ async def delete_project(project_id: str):
         await db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
         await db.commit()
     return {"success": True}
+
+
+@router.get("/{project_id}/export")
+async def export_project(project_id: str, format: str = "markdown"):
+    """Exports an executive architecture briefing in Markdown or print-ready HTML."""
+    from fastapi.responses import HTMLResponse, PlainTextResponse
+    from backend.app.services.export_service import ExportService
+
+    try:
+        if format.lower() == "html":
+            html = await ExportService.generate_html_report(project_id)
+            return HTMLResponse(content=html)
+        else:
+            md = await ExportService.generate_markdown_report(project_id)
+            return PlainTextResponse(content=md, media_type="text/markdown")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

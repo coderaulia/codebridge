@@ -85,6 +85,17 @@ export const MonacoViewer: React.FC = () => {
     );
   }
 
+  const getMonacoLanguage = () => {
+    if (!currentFile) return 'plaintext';
+    if (currentFile.language === 'prisma') return 'graphql';
+    if (currentFile.language === 'openapi') {
+      return currentFile.relative_path.endsWith('.yaml') || currentFile.relative_path.endsWith('.yml')
+        ? 'yaml'
+        : 'json';
+    }
+    return currentFile.language;
+  };
+
   return (
     <div className="flex-1 min-w-0 bg-[#0d1117] flex flex-col h-full relative overflow-hidden">
       {/* File Header / Toolbar */}
@@ -126,7 +137,7 @@ export const MonacoViewer: React.FC = () => {
       <div className="flex-1 relative">
         <Editor
           height="100%"
-          language={currentFile.language === 'prisma' ? 'graphql' : currentFile.language}
+          language={getMonacoLanguage()}
           value={currentFile.content}
           theme="vs-dark"
           options={{

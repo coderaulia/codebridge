@@ -8,6 +8,8 @@ import { IngestModal } from './components/layout/IngestModal';
 import { SettingsModal } from './components/layout/SettingsModal';
 import { ProjectSummaryModal } from './components/explorer/ProjectSummaryModal';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
+import { DiffTranslatorModal } from './components/diff/DiffTranslatorModal';
+import { ExportBriefingModal } from './components/export/ExportBriefingModal';
 import { useProjectStore } from './stores/useProjectStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { Code2, Sparkles } from 'lucide-react';
@@ -19,6 +21,8 @@ export function App() {
   const [isIngestOpen, setIsIngestOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isDiffOpen, setIsDiffOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Column 1 fixed sidebar visibility
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => {
@@ -97,6 +101,8 @@ export function App() {
         onOpenIngest={() => setIsIngestOpen(true)}
         onOpenExecutiveSummary={() => setIsSummaryOpen(true)}
         onOpenTour={() => setIsOnboardingOpen(true)}
+        onOpenDiff={() => setIsDiffOpen(true)}
+        onOpenExport={() => setIsExportOpen(true)}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
       />
@@ -181,6 +187,8 @@ export function App() {
       <SettingsModal />
       <ProjectSummaryModal isOpen={isSummaryOpen} onClose={() => setIsSummaryOpen(false)} />
       <OnboardingWizard isOpen={isOnboardingOpen} onClose={() => setIsOnboardingOpen(false)} />
+      <DiffTranslatorModal isOpen={isDiffOpen} onClose={() => setIsDiffOpen(false)} />
+      <ExportBriefingModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   Copy,
   Check,
   Zap,
+  Network,
 } from 'lucide-react';
 import { useTranslationStore } from '../../stores/useTranslationStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -185,6 +186,29 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
             {selectedRange && (
               <div className="p-2 rounded bg-[#161b22] border border-[#30363d] text-[11px] text-gray-400">
                 Inspecting <span className="font-mono text-purple-300">{currentFile?.relative_path}</span> (Lines {selectedRange.startLine}–{selectedRange.endLine})
+              </div>
+            )}
+
+            {/* Cross-File Connected Components */}
+            {translation?.cross_file_hops && translation.cross_file_hops.length > 0 && (
+              <div className="p-2.5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-300">
+                  <Network className="w-3 h-3 text-purple-400" />
+                  <span>Cross-File Dataflow Journey</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {translation.cross_file_hops.map((hop, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#21262d] text-gray-200 border border-[#30363d] flex items-center gap-1"
+                      title={hop.target_path}
+                    >
+                      <span className="text-purple-400">➔</span>
+                      <span>{hop.target_domain}</span>
+                      <span className="text-gray-500 font-mono">({hop.target_path.split('/').pop()})</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
