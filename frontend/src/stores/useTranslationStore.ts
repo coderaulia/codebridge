@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { TranslationBreakdown } from '../types/translation';
 
-type TranslationTab = 'summary' | 'inputs' | 'outputs' | 'business' | 'diagram' | 'raw';
+type TranslationTab = 'all' | 'summary' | 'inputs' | 'outputs' | 'business' | 'diagram' | 'raw';
 
 interface TranslationState {
   isTranslating: boolean;
@@ -19,7 +19,7 @@ export const useTranslationStore = create<TranslationState>((set) => ({
   isTranslating: false,
   streamingText: '',
   translation: null,
-  activeTab: 'summary',
+  activeTab: 'all',
   error: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -32,7 +32,7 @@ export const useTranslationStore = create<TranslationState>((set) => ({
       streamingText: '',
       translation: null,
       error: null,
-      activeTab: 'summary',
+      activeTab: 'all',
     });
 
     try {

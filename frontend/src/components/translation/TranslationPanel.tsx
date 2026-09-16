@@ -11,6 +11,7 @@ import {
   Check,
   Zap,
   Network,
+  Layers,
 } from 'lucide-react';
 import { useTranslationStore } from '../../stores/useTranslationStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -73,6 +74,18 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
 
       {/* Tabs */}
       <div className="flex border-b border-[#30363d] bg-[#161b22]/50 text-xs overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex items-center gap-1 px-3 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'all'
+              ? 'border-purple-500 text-purple-300 bg-[#0d1117]'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Layers className="w-3 h-3" />
+          <span>All</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('summary')}
           className={`flex items-center gap-1 px-3 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
@@ -213,6 +226,46 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
             )}
 
             {/* Active Tab View */}
+            {activeTab === 'all' && (
+              <div className="space-y-3.5">
+                <div className="p-3.5 rounded-lg bg-[#161b22] border border-purple-500/30 shadow-xs">
+                  <h4 className="font-semibold text-purple-300 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-purple-400" /> 1. Plain-English Summary
+                  </h4>
+                  <div className="whitespace-pre-line text-gray-200">
+                    {translation?.plain_summary || streamingText}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#161b22] border border-blue-500/30 shadow-xs">
+                  <h4 className="font-semibold text-blue-300 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1.5">
+                    <LogIn className="w-3.5 h-3.5 text-blue-400" /> 2. Inputs & Parameters (What goes in)
+                  </h4>
+                  <div className="whitespace-pre-line text-gray-200">
+                    {translation?.inputs_and_parameters || 'Standard application data parameters.'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#161b22] border border-emerald-500/30 shadow-xs">
+                  <h4 className="font-semibold text-emerald-300 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1.5">
+                    <LogOut className="w-3.5 h-3.5 text-emerald-400" /> 3. Outputs & Effects (What happens)
+                  </h4>
+                  <div className="whitespace-pre-line text-gray-200">
+                    {translation?.outputs_and_effects || 'Returns result or modifies database records.'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#161b22] border border-amber-500/30 shadow-xs">
+                  <h4 className="font-semibold text-amber-300 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> 4. Business Rule Tie-In (Why this matters)
+                  </h4>
+                  <div className="whitespace-pre-line text-gray-200">
+                    {translation?.business_rule_tie_in || 'Essential to system reliability and business operations.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'summary' && (
               <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d]">
                 <h4 className="font-semibold text-purple-300 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1.5">

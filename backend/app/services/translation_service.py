@@ -4,6 +4,7 @@ Translates selected code blocks and database schemas into the 4-part non-technic
 """
 import hashlib
 import json
+import re
 from typing import AsyncGenerator, Dict, Any, Optional
 import aiosqlite
 
@@ -174,11 +175,17 @@ Translate this into the 4-part CodeBridge structure in plain English. Incorporat
 
         complete_text = "".join(full_response)
 
+        # Regex patterns accommodating common formatting variations
+        p_summary = r"(?:#+\s*)?(?:1[\.\:\-\s]+)?Plain[\s\-]English\s+Summary[:\s]*"
+        p_inputs = r"(?:#+\s*)?(?:2[\.\:\-\s]+)?Inputs?\s*(?:&|and)?\s*Parameters?(?:\s*\([^)]*\))?[:\s]*"
+        p_outputs = r"(?:#+\s*)?(?:3[\.\:\-\s]+)?Outputs?\s*(?:&|and)?\s*(?:Side\s+)?Effects?(?:\s*\([^)]*\))?[:\s]*"
+        p_business = r"(?:#+\s*)?(?:4[\.\:\-\s]+)?Business\s*Rule(?:\s*Tie[\s\-]In)?(?:\s*\([^)]*\))?[:\s]*"
+
         # Parse the 4 sections from complete_text
-        summary_section = self._extract_section(complete_text, "1. Plain-English Summary", "2. Inputs")
-        inputs_section = self._extract_section(complete_text, "2. Inputs & Parameters", "3. Outputs")
-        outputs_section = self._extract_section(complete_text, "3. Outputs & Side Effects", "4. Business")
-        business_section = self._extract_section(complete_text, "4. Business Rule Tie-In", None)
+        summary_section = self._extract_section(complete_text, p_summary, p_inputs)
+        inputs_section = self._extract_section(complete_text, p_inputs, p_outputs)
+        outputs_section = self._extract_section(complete_text, p_outputs, p_business)
+        business_section = self._extract_section(complete_text, p_business, None)
 
         # Save to SQLite cache
         async with aiosqlite.connect(DB_PATH) as db:
@@ -213,12 +220,19 @@ Translate this into the 4-part CodeBridge structure in plain English. Incorporat
         yield f"data: {json.dumps({'event': 'complete', 'data': final_payload})}\n\n"
         yield "data: [DONE]\n\n"
 
-    def _extract_section(self, text: str, start_header: str, next_header: Optional[str]) -> str:
-        """Extracts markdown text between two section headers."""
-        if start_header not in text:
+    def _extract_section(self, text: str, pattern: str, next_pattern: Optional[str]) -> str:
+        """Extracts markdown text between two section headers using resilient regex matching."""
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if not match:
             return ""
-        start_idx = text.find(start_header) + len(start_header)
-        if next_header and next_header in text:
-            end_idx = text.find(next_header, start_idx)
-            return text[start_idx:end_idx].strip("# \n\r")
-        return text[start_idx:].strip("# \n\r")
+        start_idx = match.end()
+        if next_pattern:
+            next_match = re.search(next_pattern, text[start_idx:], re.IGNORECASE | re.MULTILINE)
+            if next_match:
+                extracted = text[start_idx:start_idx + next_match.start()]
+                # Strip out any trailing mermaid fences if embedded inside the section
+                extracted = re.sub(r"```mermaid[\s\S]*?```", "", extracted).strip()
+                return extracted.strip("# \n\r*:-")
+        extracted = text[start_idx:]
+        extracted = re.sub(r"```mermaid[\s\S]*?```", "", extracted).strip()
+        return extracted.strip("# \n\r*:-")
