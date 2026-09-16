@@ -10,6 +10,7 @@ interface ProjectState {
   totalSymbols: number;
   currentFile: FileDetail | null;
   selectedRange: { startLine: number; endLine: number; code: string } | null;
+  macroDiagram: string | null;
   isLoading: boolean;
   isBackendConnected: boolean;
   error: string | null;
@@ -22,6 +23,7 @@ interface ProjectState {
   deleteProject: (projectId: string) => Promise<void>;
   ingestLocal: (directoryPath: string, name?: string) => Promise<string>;
   ingestGithub: (repoUrl: string, token?: string) => Promise<string>;
+  generateSummaries: (projectId: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -32,6 +34,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   totalSymbols: 0,
   currentFile: null,
   selectedRange: null,
+  macroDiagram: null,
   isLoading: false,
   isBackendConnected: true,
   error: null,
@@ -82,6 +85,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         domains: res.data.domains,
         totalFiles: res.data.total_files,
         totalSymbols: res.data.total_symbols,
+        macroDiagram: res.data.macro_diagram || null,
         currentFile: null,
         selectedRange: null,
         isLoading: false,
@@ -156,6 +160,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     } catch (err: any) {
       set({ error: err.response?.data?.detail || err.message, isLoading: false });
       throw err;
+    }
+  },
+
+  generateSummaries: async (projectId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await axios.post(`/api/projects/${projectId}/generate-summaries`);
+      await get().selectProject(projectId);
+      set({ isLoading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.detail || err.message, isLoading: false });
     }
   },
 }));

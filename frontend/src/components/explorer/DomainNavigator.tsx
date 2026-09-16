@@ -193,21 +193,33 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
                 {/* File List */}
                 {!isCollapsed && (
                   <div className="py-1 px-1 space-y-0.5">
+                    {domain.description && (
+                      <div className="px-2.5 py-1 text-[10px] text-gray-400 italic bg-[#0d1117]/60 rounded mb-1 border border-[#30363d]/20">
+                        {domain.description}
+                      </div>
+                    )}
                     {domain.files.map((file) => {
                       const isSelected = currentFile?.id === file.id;
                       return (
                         <button
                           key={file.id}
                           onClick={() => selectFile(file.id)}
-                          className={`w-full px-2.5 py-1.5 rounded text-left flex items-center justify-between gap-2 transition-all ${
+                          className={`w-full px-2.5 py-1.5 rounded text-left flex flex-col gap-0.5 transition-all ${
                             isSelected
                               ? 'bg-purple-950/60 border border-purple-800/60 text-purple-200 font-medium'
                               : 'text-gray-400 hover:bg-[#21262d] hover:text-gray-200'
                           }`}
                           title={file.plain_summary || file.relative_path}
                         >
-                          <div className="truncate text-xs flex-1">{file.relative_path}</div>
-                          {getFileBadge(file)}
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <span className="truncate text-xs font-mono">{file.relative_path}</span>
+                            {getFileBadge(file)}
+                          </div>
+                          {file.plain_summary && !file.plain_summary.startsWith('Provides general') && (
+                            <span className="text-[10px] text-gray-400 truncate w-full font-sans">
+                              {file.plain_summary}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

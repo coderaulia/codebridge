@@ -74,6 +74,14 @@ class ExportService:
             "The codebase is categorized into the following core operational departments:\n",
         ]
 
+        # Macro Architecture Map
+        domains_data = [{"domain_name": d["business_domain"] or "General Application Logic", "file_count": d["file_count"]} for d in domains]
+        macro_diag = DiagramService.generate_macro_architecture_diagram(domains_data)
+        if macro_diag:
+            lines.append("```mermaid")
+            lines.append(macro_diag)
+            lines.append("```\n")
+
         for d in domains:
             domain_name = d["business_domain"] or "General Application Logic"
             file_count = d["file_count"]

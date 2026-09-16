@@ -30,6 +30,7 @@ class ProjectDetailResponse(BaseModel):
     domains: List[BusinessDomainGroup]
     total_files: int
     total_symbols: int
+    macro_diagram: Optional[str] = None
 
 
 @router.get("", response_model=List[Project])
@@ -155,8 +156,15 @@ async def get_project(project_id: str):
             )
         )
 
+    summarizer = SummarizerService()
+    macro_diagram = await summarizer.generate_project_macro_diagram(project_id)
+
     domains = [
-        BusinessDomainGroup(domain_name=k, files=v)
+        BusinessDomainGroup(
+            domain_name=k,
+            description=f"Coordinates {k.lower()} operations across {len(v)} components.",
+            files=v,
+        )
         for k, v in sorted(domain_map.items(), key=lambda item: len(item[1]), reverse=True)
     ]
 
@@ -165,7 +173,17 @@ async def get_project(project_id: str):
         domains=domains,
         total_files=len(files_rows),
         total_symbols=total_symbols,
+        macro_diagram=macro_diagram,
     )
+
+
+@router.post("/{project_id}/generate-summaries", response_model=dict)
+async def generate_project_summaries(project_id: str):
+    """Generates bottom-up AI file and domain summaries across the project."""
+    summarizer = SummarizerService()
+    count = await summarizer.generate_all_file_summaries(project_id)
+    await summarizer.generate_project_executive_summary(project_id)
+    return {"success": True, "files_summarized": count}
 
 
 @router.delete("/{project_id}")

@@ -37,5 +37,14 @@ export interface FileDetail extends FileRecord {
 
 export interface BusinessDomainGroup {
   domain_name: string;
+  description?: string;
   files: FileRecord[];
+}
+
+export interface ProjectDetailResponse {
+  project: Project;
+  domains: BusinessDomainGroup[];
+  total_files: number;
+  total_symbols: number;
+  macro_diagram?: string | null;
 }
