@@ -2,7 +2,7 @@
 CodeBridge V1 - Projects API Routes
 Endpoints for ingesting, querying, and managing codebases from local folders or GitHub.
 """
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 import aiosqlite

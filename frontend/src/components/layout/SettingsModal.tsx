@@ -193,8 +193,24 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <div className="font-semibold">{testResult.message}</div>
                 {testResult.available_models && testResult.available_models.length > 0 && (
-                  <div className="mt-1 text-[11px] text-gray-400">
-                    Discovered models: {testResult.available_models.slice(0, 5).join(', ')}
+                  <div className="mt-2 text-[11px] text-gray-400">
+                    <span className="font-medium text-gray-300">Discovered models (click to use):</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {testResult.available_models.slice(0, 8).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, model_name: m })}
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-colors ${
+                            formData.model_name === m
+                              ? 'bg-purple-600/30 border-purple-500 text-purple-200'
+                              : 'bg-[#21262d] border-[#30363d] text-gray-300 hover:border-purple-400'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

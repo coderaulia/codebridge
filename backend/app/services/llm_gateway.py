@@ -75,7 +75,7 @@ class LLMGateway:
         start_time = time.perf_counter()
         available_models: List[str] = []
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # 1. Try GET /models
             try:
                 models_res = await client.get(f"{clean_url}/models", headers=headers)
@@ -87,9 +87,10 @@ class LLMGateway:
                 pass
 
             # 2. Test lightweight completion ping
+            target_model = model_name or (available_models[0] if available_models else "default")
             try:
                 payload = {
-                    "model": model_name or (available_models[0] if available_models else "default"),
+                    "model": target_model,
                     "messages": [{"role": "user", "content": "ping"}],
                     "max_tokens": 5,
                     "temperature": 0.0,
@@ -111,12 +112,28 @@ class LLMGateway:
                         message=f"Provider returned HTTP {res.status_code}: {res.text[:200]}",
                         available_models=available_models[:15],
                     )
-            except Exception as e:
+            except httpx.TimeoutException:
                 latency = round((time.perf_counter() - start_time) * 1000, 2)
+                if available_models:
+                    return ConnectionTestResponse(
+                        success=True,
+                        latency_ms=latency,
+                        message=f"Connected to {clean_url} (models discovered). Model cold-start load took longer than 30s.",
+                        available_models=available_models[:15],
+                    )
                 return ConnectionTestResponse(
                     success=False,
                     latency_ms=latency,
-                    message=f"Failed to connect to {clean_url}: {str(e)}",
+                    message=f"Connection timed out after {latency}ms connecting to {clean_url}",
+                    available_models=available_models,
+                )
+            except Exception as e:
+                latency = round((time.perf_counter() - start_time) * 1000, 2)
+                err_msg = str(e) or type(e).__name__
+                return ConnectionTestResponse(
+                    success=False,
+                    latency_ms=latency,
+                    message=f"Failed to connect to {clean_url}: {err_msg}",
                     available_models=available_models,
                 )
 
