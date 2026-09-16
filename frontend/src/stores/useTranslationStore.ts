@@ -12,7 +12,8 @@ interface TranslationState {
 
   setActiveTab: (tab: TranslationTab) => void;
   clearTranslation: () => void;
-  translateSelection: (fileId: string, startLine: number, endLine: number, selectedCode: string) => Promise<void>;
+  setFileOverview: (file: any) => void;
+  translateSelection: (fileId: string, startLine: number, endLine: number, selectedCode: string, forceRefresh?: boolean) => Promise<void>;
 }
 
 export const useTranslationStore = create<TranslationState>((set) => ({
@@ -26,7 +27,39 @@ export const useTranslationStore = create<TranslationState>((set) => ({
 
   clearTranslation: () => set({ translation: null, streamingText: '', error: null }),
 
-  translateSelection: async (fileId, startLine, endLine, selectedCode) => {
+  setFileOverview: (file) => {
+    if (!file) {
+      set({ translation: null, streamingText: '', error: null });
+      return;
+    }
+    const summaryText = file.plain_summary || '';
+    const hasRealSummary =
+      Boolean(summaryText) &&
+      !summaryText.startsWith('Provides ') &&
+      !summaryText.includes('logic for the application');
+    const symbolsText =
+      file.symbols && file.symbols.length > 0
+        ? file.symbols.map((s: any) => `${s.symbol_type}: ${s.name}`).slice(0, 5).join(', ')
+        : 'File components and operational definitions';
+
+    set({
+      streamingText: '',
+      error: null,
+      activeTab: 'all',
+      translation: {
+        plain_summary: hasRealSummary
+          ? file.plain_summary
+          : `Coordinates ${file.business_domain?.toLowerCase() || 'application'} capabilities in ${file.relative_path}. Highlight any section to translate line-by-line.`,
+        inputs_and_parameters: `Components and exported symbols: ${symbolsText}`,
+        outputs_and_effects: `Implements functional routines powering the '${file.business_domain || 'General'}' operational domain.`,
+        business_rule_tie_in: `Core asset in the '${file.business_domain || 'General'}' business domain.`,
+        mermaid_diagram: '',
+        cached: Boolean(hasRealSummary),
+      },
+    });
+  },
+
+  translateSelection: async (fileId, startLine, endLine, selectedCode, forceRefresh = false) => {
     set({
       isTranslating: true,
       streamingText: '',
@@ -44,6 +77,7 @@ export const useTranslationStore = create<TranslationState>((set) => ({
           start_line: startLine,
           end_line: endLine,
           selected_code: selectedCode,
+          force_refresh: forceRefresh,
         }),
       });
 

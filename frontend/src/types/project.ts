@@ -17,6 +17,15 @@ export interface FileRecord {
   size_bytes: number;
   plain_summary: string | null;
   business_domain: string | null;
+  has_explanation?: boolean;
+}
+
+export interface ScanStatus {
+  total: number;
+  completed: number;
+  current_file: string | null;
+  is_scanning: boolean;
+  error?: string | null;
 }
 
 export interface SymbolRecord {

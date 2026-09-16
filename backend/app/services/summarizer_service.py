@@ -2,7 +2,8 @@
 CodeBridge V1 - Hierarchical Summarization Engine
 Produces bottom-up plain-English summaries at the File, Domain, and Project levels.
 """
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Callable
 import aiosqlite
 from backend.app.config import DB_PATH
 from backend.app.services.llm_gateway import LLMGateway
@@ -98,7 +99,15 @@ Instructions:
         """Generates a 1-2 sentence non-technical summary of a file's business responsibility (Level 1)."""
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM files WHERE id = ?", (file_id,))
+            cursor = await db.execute(
+                """
+                SELECT f.*, p.source_path
+                FROM files f
+                JOIN projects p ON f.project_id = p.id
+                WHERE f.id = ?
+                """,
+                (file_id,),
+            )
             file_row = await cursor.fetchone()
             if not file_row:
                 raise ValueError("File not found")
@@ -107,14 +116,26 @@ Instructions:
             cursor = await db.execute("SELECT name, symbol_type FROM symbols WHERE file_id = ? LIMIT 8", (file_id,))
             symbols = await cursor.fetchall()
 
+        # Read snippet from disk if available
+        snippet = ""
+        try:
+            source_root = Path(file_row["source_path"])
+            full_path = source_root / file_row["relative_path"]
+            if full_path.exists():
+                text = full_path.read_text(encoding="utf-8", errors="ignore")
+                snippet = "\n".join(text.splitlines()[:30])[:1200]
+        except Exception:
+            snippet = ""
+
         sym_names = [s["name"] for s in symbols]
         sym_desc = f"including {', '.join(sym_names[:4])}" if sym_names else "with core operational routines"
+        snippet_context = f"\nFile Excerpt:\n```\n{snippet}\n```" if snippet else ""
 
         prompt = f"""You are CodeBridge File Analyst. Summarize this code file in 1-2 plain English sentences for a non-technical product manager:
 File: {file_row['relative_path']}
 Language: {file_row['language']}
 Business Domain: {file_row['business_domain']}
-Key Symbols: {', '.join(sym_names)}
+Key Symbols: {', '.join(sym_names) if sym_names else 'Operational components'}{snippet_context}
 
 Explain what business capability or workflow this file manages. Do not mention line numbers or code syntax."""
 
@@ -190,21 +211,48 @@ Explain the business purpose and value to customers or operations in clear, non-
         domains_data = [dict(r) for r in rows]
         return DiagramService.generate_macro_architecture_diagram(domains_data)
 
-    async def generate_all_file_summaries(self, project_id: str) -> int:
-        """Background task to generate AI file summaries for all files in a project."""
+    async def generate_all_file_summaries(
+        self,
+        project_id: str,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    ) -> int:
+        """Background task to generate AI file summaries for un-summarized files in a project."""
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                "SELECT id FROM files WHERE project_id = ?",
+                """
+                SELECT id, relative_path, plain_summary FROM files
+                WHERE project_id = ?
+                ORDER BY
+                    CASE
+                        WHEN file_type = 'schema' THEN 1
+                        WHEN relative_path LIKE '%page%' OR relative_path LIKE '%route%' THEN 2
+                        WHEN relative_path LIKE '%service%' OR relative_path LIKE '%api%' THEN 3
+                        ELSE 4
+                    END
+                """,
                 (project_id,),
             )
-            rows = await cursor.fetchall()
+            all_files = await cursor.fetchall()
 
+        # Filter un-summarized files
+        files_to_process = [
+            f for f in all_files
+            if not f["plain_summary"] or (f["plain_summary"].startswith("Provides ") and "logic for the application" in f["plain_summary"])
+        ]
+
+        total = len(files_to_process)
         count = 0
-        for r in rows:
+
+        for f in files_to_process:
+            if progress_callback:
+                progress_callback(count, total, f["relative_path"])
             try:
-                await self.generate_file_summary(r["id"])
+                await self.generate_file_summary(f["id"])
                 count += 1
             except Exception:
                 continue
+            if progress_callback:
+                progress_callback(count, total, f["relative_path"])
+
         return count

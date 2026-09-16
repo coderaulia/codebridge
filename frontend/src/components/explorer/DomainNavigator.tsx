@@ -8,6 +8,8 @@ import {
   Trash2,
   FolderTree,
   Search,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 import type { FileRecord } from '../../types/project';
@@ -23,9 +25,11 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
     currentProject,
     domains,
     currentFile,
+    scanStatus,
     selectProject,
     selectFile,
     deleteProject,
+    startProjectScan,
   } = useProjectStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,6 +161,56 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
             className="w-full pl-8 pr-3 py-1 text-xs rounded-md bg-[#0d1117] border border-[#30363d] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500"
           />
         </div>
+
+        {/* Background Translation Scanner Banner */}
+        {currentProject && (
+          <div className="mt-2.5 pt-2 border-t border-[#30363d]/60">
+            {scanStatus?.is_scanning ? (
+              <div className="p-2 rounded-md bg-purple-950/40 border border-purple-800/50 text-[11px] space-y-1.5">
+                <div className="flex items-center justify-between text-purple-300 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                    <span>AI Pre-warming...</span>
+                  </span>
+                  <span className="font-mono text-[10px]">
+                    {scanStatus.completed}/{scanStatus.total} ({scanStatus.total > 0 ? Math.round((scanStatus.completed / scanStatus.total) * 100) : 0}%)
+                  </span>
+                </div>
+                <div className="w-full bg-[#21262d] rounded-full h-1 overflow-hidden">
+                  <div
+                    className="bg-purple-500 h-1 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${scanStatus.total > 0 ? Math.min(100, Math.round((scanStatus.completed / scanStatus.total) * 100)) : 0}%`,
+                    }}
+                  />
+                </div>
+                {scanStatus.current_file && (
+                  <div className="text-[10px] text-gray-400 truncate font-mono" title={scanStatus.current_file}>
+                    {scanStatus.current_file}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-[10px] px-1 text-gray-400">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  <span>
+                    {scanStatus ? `${scanStatus.completed}/${scanStatus.total} files explained` : 'AI Explanations'}
+                  </span>
+                </span>
+                {scanStatus && scanStatus.completed < scanStatus.total && (
+                  <button
+                    onClick={() => startProjectScan(currentProject.id)}
+                    className="text-purple-400 hover:text-purple-300 font-medium hover:underline flex items-center gap-0.5"
+                    title="Translate all remaining files in background"
+                  >
+                    <span>Explain all</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Domain Accordions */}
@@ -200,23 +254,48 @@ export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, class
                     )}
                     {domain.files.map((file) => {
                       const isSelected = currentFile?.id === file.id;
+                      const summaryText = file.plain_summary || '';
+                      const hasRealSummary =
+                        Boolean(summaryText) &&
+                        !summaryText.startsWith('Provides ') &&
+                        !summaryText.includes('logic for the application');
+                      const isExplained = Boolean(file.has_explanation || hasRealSummary);
+
                       return (
                         <button
                           key={file.id}
                           onClick={() => selectFile(file.id)}
-                          className={`w-full px-2.5 py-1.5 rounded text-left flex flex-col gap-0.5 transition-all ${
+                          className={`w-full px-2.5 py-1.5 rounded text-left flex flex-col gap-1 transition-all ${
                             isSelected
                               ? 'bg-purple-950/60 border border-purple-800/60 text-purple-200 font-medium'
                               : 'text-gray-400 hover:bg-[#21262d] hover:text-gray-200'
                           }`}
                           title={file.plain_summary || file.relative_path}
                         >
-                          <div className="flex items-center justify-between gap-2 w-full">
-                            <span className="truncate text-xs font-mono">{file.relative_path}</span>
-                            {getFileBadge(file)}
+                          <div className="flex items-center justify-between gap-1.5 w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  isExplained ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-gray-600'
+                                }`}
+                                title={isExplained ? 'AI Explained' : 'Pending Translation'}
+                              />
+                              <span className={`truncate text-xs font-mono ${isExplained ? 'text-gray-200' : 'text-gray-400'}`}>
+                                {file.relative_path}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isExplained && (
+                                <span className="px-1 py-0.2 rounded text-[9px] bg-emerald-950/70 text-emerald-300 border border-emerald-800/50 flex items-center gap-0.5">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  <span>Explained</span>
+                                </span>
+                              )}
+                              {getFileBadge(file)}
+                            </div>
                           </div>
-                          {file.plain_summary && !file.plain_summary.startsWith('Provides general') && (
-                            <span className="text-[10px] text-gray-400 truncate w-full font-sans">
+                          {hasRealSummary && (
+                            <span className="text-[10px] text-gray-400 line-clamp-1 w-full font-sans pl-3 opacity-80">
                               {file.plain_summary}
                             </span>
                           )}

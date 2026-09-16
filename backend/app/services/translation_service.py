@@ -50,6 +50,7 @@ class TranslationService:
         start_line: int,
         end_line: int,
         selected_code: str,
+        force_refresh: bool = False,
     ) -> AsyncGenerator[str, None]:
         """Streams 4-part translation tokens over SSE, checking SQLite cache first."""
         # 1. Fetch file context from DB
@@ -77,23 +78,24 @@ class TranslationService:
             f"{selected_code.strip()}_{file_row['language']}_{settings.model_name}".encode("utf-8")
         ).hexdigest()
 
-        # 2. Check cache
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM translations_cache WHERE cache_key = ?", (cache_key,))
-            cached = await cursor.fetchone()
-            if cached:
-                cached_payload = {
-                    "plain_summary": cached["summary_text"],
-                    "inputs_and_parameters": cached["inputs_text"],
-                    "outputs_and_effects": cached["outputs_text"],
-                    "business_rule_tie_in": cached["business_rule_text"],
-                    "mermaid_diagram": cached["mermaid_code"],
-                    "cached": True,
-                }
-                yield f"data: {json.dumps({'event': 'cached', 'data': cached_payload})}\n\n"
-                yield "data: [DONE]\n\n"
-                return
+        # 2. Check cache (skipped if force_refresh is requested)
+        if not force_refresh:
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM translations_cache WHERE cache_key = ?", (cache_key,))
+                cached = await cursor.fetchone()
+                if cached:
+                    cached_payload = {
+                        "plain_summary": cached["summary_text"],
+                        "inputs_and_parameters": cached["inputs_text"],
+                        "outputs_and_effects": cached["outputs_text"],
+                        "business_rule_tie_in": cached["business_rule_text"],
+                        "mermaid_diagram": cached["mermaid_code"],
+                        "cached": True,
+                    }
+                    yield f"data: {json.dumps({'event': 'cached', 'data': cached_payload})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
 
         # 3. Generate deterministic Mermaid diagram if applicable
         mermaid_code = ""
@@ -187,24 +189,32 @@ Translate this into the 4-part CodeBridge structure in plain English. Incorporat
         outputs_section = self._extract_section(complete_text, p_outputs, p_business)
         business_section = self._extract_section(complete_text, p_business, None)
 
-        # Save to SQLite cache
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """
-                INSERT OR IGNORE INTO translations_cache (id, cache_key, summary_text, inputs_text, outputs_text, business_rule_text, mermaid_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    f"trans_{hashlib.md5(cache_key.encode()).hexdigest()[:12]}",
-                    cache_key,
-                    summary_section or complete_text[:250],
-                    inputs_section or "Standard parameters passed to function",
-                    outputs_section or "Returns computed data or modifies record",
-                    business_section or "Essential to domain workflow",
-                    mermaid_code,
-                ),
-            )
-            await db.commit()
+        # Save to SQLite cache only if valid response without error
+        is_error = "[Error:" in complete_text or "Error: Provider returned" in complete_text
+        if not is_error:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    """
+                    INSERT INTO translations_cache (id, cache_key, summary_text, inputs_text, outputs_text, business_rule_text, mermaid_code)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(cache_key) DO UPDATE SET
+                        summary_text = excluded.summary_text,
+                        inputs_text = excluded.inputs_text,
+                        outputs_text = excluded.outputs_text,
+                        business_rule_text = excluded.business_rule_text,
+                        mermaid_code = excluded.mermaid_code
+                    """,
+                    (
+                        f"trans_{hashlib.md5(cache_key.encode()).hexdigest()[:12]}",
+                        cache_key,
+                        summary_section or complete_text[:250],
+                        inputs_section or "Standard parameters passed to function",
+                        outputs_section or "Returns computed data or modifies record",
+                        business_section or "Essential to domain workflow",
+                        mermaid_code,
+                    ),
+                )
+                await db.commit()
 
         # Emit final structured payload with mermaid diagram
         final_payload = {

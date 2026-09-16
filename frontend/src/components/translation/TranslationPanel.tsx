@@ -12,6 +12,7 @@ import {
   Zap,
   Network,
   Layers,
+  RotateCw,
 } from 'lucide-react';
 import { useTranslationStore } from '../../stores/useTranslationStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -24,7 +25,7 @@ interface TranslationPanelProps {
 }
 
 export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, className = '' }) => {
-  const { translation, streamingText, isTranslating, activeTab, setActiveTab } = useTranslationStore();
+  const { translation, streamingText, isTranslating, activeTab, setActiveTab, translateSelection } = useTranslationStore();
   const { selectedRange, currentFile } = useProjectStore();
   const [copied, setCopied] = React.useState(false);
 
@@ -39,6 +40,18 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
       navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (currentFile && selectedRange) {
+      translateSelection(
+        currentFile.id,
+        selectedRange.startLine,
+        selectedRange.endLine,
+        selectedRange.code,
+        true
+      );
     }
   };
 
@@ -61,6 +74,16 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1">
               <Zap className="w-2.5 h-2.5" /> Cached
             </span>
+          )}
+          {Boolean(translation || streamingText) && Boolean(currentFile && selectedRange) && (
+            <button
+              onClick={handleRegenerate}
+              disabled={isTranslating}
+              className="p-1 hover:bg-[#21262d] rounded text-gray-400 hover:text-purple-300 disabled:opacity-40 transition-colors"
+              title="Regenerate with AI (Bypass Cache)"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isTranslating ? 'animate-spin text-purple-400' : ''}`} />
+            </button>
           )}
           <button
             onClick={handleCopy}
@@ -196,11 +219,18 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
         ) : (
           <div className="space-y-4 text-xs leading-relaxed">
             {/* Context Badge */}
-            {selectedRange && (
+            {selectedRange ? (
               <div className="p-2 rounded bg-[#161b22] border border-[#30363d] text-[11px] text-gray-400">
                 Inspecting <span className="font-mono text-purple-300">{currentFile?.relative_path}</span> (Lines {selectedRange.startLine}–{selectedRange.endLine})
               </div>
-            )}
+            ) : currentFile ? (
+              <div className="p-2 rounded bg-[#161b22] border border-[#30363d] text-[11px] text-gray-400 flex items-center justify-between">
+                <span>
+                  Overview for <span className="font-mono text-purple-300">{currentFile.relative_path}</span>
+                </span>
+                <span className="text-[10px] text-gray-500 font-sans">Highlight code to translate lines</span>
+              </div>
+            ) : null}
 
             {/* Cross-File Connected Components */}
             {translation?.cross_file_hops && translation.cross_file_hops.length > 0 && (

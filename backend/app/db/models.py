@@ -66,6 +66,7 @@ class FileRecord(BaseModel):
     size_bytes: int
     plain_summary: Optional[str] = None
     business_domain: Optional[str] = None
+    has_explanation: bool = False
 
 
 class FileDetail(FileRecord):
@@ -85,6 +86,7 @@ class TranslationRequest(BaseModel):
     end_line: int
     selected_code: str
     surrounding_context: Optional[str] = None
+    force_refresh: bool = False
 
 
 class TranslationBreakdown(BaseModel):

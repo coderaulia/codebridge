@@ -22,6 +22,7 @@ async def stream_translation(req: TranslationRequest):
             start_line=req.start_line,
             end_line=req.end_line,
             selected_code=req.selected_code,
+            force_refresh=req.force_refresh,
         ):
             yield sse_event
 

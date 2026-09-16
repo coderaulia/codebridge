@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import type { Project, FileDetail, BusinessDomainGroup } from '../types/project';
+import type { Project, FileDetail, BusinessDomainGroup, ScanStatus } from '../types/project';
+import { useTranslationStore } from './useTranslationStore';
 
 interface ProjectState {
   projects: Project[];
@@ -11,6 +12,7 @@ interface ProjectState {
   currentFile: FileDetail | null;
   selectedRange: { startLine: number; endLine: number; code: string } | null;
   macroDiagram: string | null;
+  scanStatus: ScanStatus | null;
   isLoading: boolean;
   isBackendConnected: boolean;
   error: string | null;
@@ -19,6 +21,7 @@ interface ProjectState {
   fetchProjects: () => Promise<void>;
   selectProject: (projectId: string) => Promise<void>;
   selectFile: (fileId: string) => Promise<void>;
+  startProjectScan: (projectId: string) => Promise<void>;
   setSelectedRange: (range: { startLine: number; endLine: number; code: string } | null) => void;
   deleteProject: (projectId: string) => Promise<void>;
   ingestLocal: (directoryPath: string, name?: string) => Promise<string>;
@@ -35,6 +38,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   currentFile: null,
   selectedRange: null,
   macroDiagram: null,
+  scanStatus: null,
   isLoading: false,
   isBackendConnected: true,
   error: null,
@@ -95,6 +99,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (res.data.domains.length > 0 && res.data.domains[0].files.length > 0) {
         await get().selectFile(res.data.domains[0].files[0].id);
       }
+
+      // Automatically launch background translation pre-warmer/scanner on project open
+      get().startProjectScan(projectId);
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }
@@ -104,8 +111,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     try {
       const res = await axios.get<FileDetail>(`/api/files/${fileId}`);
       set({ currentFile: res.data, selectedRange: null });
+      // Update translation column immediately with the picked file's overview & summary!
+      useTranslationStore.getState().setFileOverview(res.data);
     } catch (err: any) {
       set({ error: err.message });
+    }
+  },
+
+  startProjectScan: async (projectId: string) => {
+    try {
+      const res = await axios.post<ScanStatus>(`/api/projects/${projectId}/scan-translations`);
+      set({ scanStatus: res.data });
+
+      if (res.data.is_scanning) {
+        let tick = 0;
+        const interval = setInterval(async () => {
+          try {
+            tick++;
+            const statusRes = await axios.get<ScanStatus>(`/api/projects/${projectId}/scan-status`);
+            set({ scanStatus: statusRes.data });
+
+            // Periodically refresh domain files to reflect newly explained files live
+            if (tick % 2 === 0 || !statusRes.data.is_scanning) {
+              const projRes = await axios.get(`/api/projects/${projectId}`);
+              set({
+                domains: projRes.data.domains,
+                currentProject: projRes.data.project,
+                macroDiagram: projRes.data.macro_diagram || null,
+              });
+            }
+
+            if (!statusRes.data.is_scanning) {
+              clearInterval(interval);
+            }
+          } catch {
+            clearInterval(interval);
+          }
+        }, 2500);
+      }
+    } catch {
+      // Non-fatal if scan trigger fails
     }
   },
 
