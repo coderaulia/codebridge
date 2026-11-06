@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -8,7 +9,7 @@ interface Message {
 }
 
 export const PlainEnglishChat: React.FC = () => {
-  const { currentFile, selectedRange } = useProjectStore();
+  const { currentFile, selectedRange } = useProjectStore(useShallow((s) => ({ currentFile: s.currentFile, selectedRange: s.selectedRange })));
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

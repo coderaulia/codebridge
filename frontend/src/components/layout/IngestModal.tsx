@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import { X, Folder, GitBranch, ArrowRight, Loader2, AlertCircle, FolderOpen } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -18,7 +19,7 @@ export const IngestModal: React.FC<IngestModalProps> = ({ isOpen, onClose }) => 
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { ingestLocal, ingestGithub } = useProjectStore();
+  const { ingestLocal, ingestGithub } = useProjectStore(useShallow((s) => ({ ingestLocal: s.ingestLocal, ingestGithub: s.ingestGithub })));
 
   if (!isOpen) return null;
 

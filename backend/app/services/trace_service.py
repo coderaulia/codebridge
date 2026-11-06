@@ -102,10 +102,19 @@ class TraceService:
         origin_path = origin_row["relative_path"]
         origin_domain = origin_row["business_domain"] or "General Application Logic"
 
+        # Tokenize snippet once; set lookup replaces one regex scan per symbol
+        code_identifiers = set(re.findall(r"\w+", code_to_analyze))
+
         for sym in all_symbols:
             sym_name = sym["name"]
             # Check for direct usage or import in code
-            if len(sym_name) >= 3 and re.search(r"\b" + re.escape(sym_name) + r"\b", code_to_analyze):
+            if len(sym_name) < 3:
+                continue
+            if sym_name.isidentifier() or sym_name.isalnum():
+                matched = sym_name in code_identifiers
+            else:
+                matched = re.search(r"\b" + re.escape(sym_name) + r"\b", code_to_analyze) is not None
+            if matched:
                 target_file_id = sym["file_id"]
                 if target_file_id not in target_map:
                     rel_type = "database" if sym["symbol_type"] in ("table", "model") else "service"

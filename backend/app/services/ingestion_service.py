@@ -4,6 +4,7 @@ Handles local directory scanning and remote GitHub zipball streaming with determ
 """
 import os
 import io
+import asyncio
 import uuid
 import zipfile
 from pathlib import Path
@@ -189,7 +190,7 @@ class IngestionService:
                     resolved_path = (target_dir / member).resolve()
                     if not str(resolved_path).startswith(str(target_dir.resolve())):
                         raise SecurityError("Path traversal detected in zip archive.")
-                z.extractall(target_dir)
+                await asyncio.to_thread(z.extractall, target_dir)
 
         # Locate root directory inside extracted zip (GitHub zips typically have top-level dir owner-repo-hash)
         extracted_roots = [d for d in target_dir.iterdir() if d.is_dir()]
@@ -228,9 +229,8 @@ class IngestionService:
         return proj_id
 
     @staticmethod
-    async def _index_directory_files(project_id: str, root_dir: Path) -> None:
-        """Walks directory, extracts symbols deterministically, and stores in SQLite."""
-        # Load .gitignore if present
+    def _collect_rows(project_id: str, root_dir: Path) -> Tuple[list, list]:
+        """Blocking: walks directory, reads and parses files. Returns (file_rows, symbol_rows)."""
         spec = None
         gitignore_file = root_dir / ".gitignore"
         if gitignore_file.exists():
@@ -241,81 +241,100 @@ class IngestionService:
             except Exception:
                 spec = None
 
-        async with aiosqlite.connect(DB_PATH) as db:
-            for dirpath, dirnames, filenames in os.walk(root_dir):
-                # Filter out excluded directories
-                filtered_dirs = []
-                for d in dirnames:
-                    if d in EXCLUDED_DIRS or d.startswith("."):
-                        continue
-                    if spec:
-                        try:
-                            rel_d = str((Path(dirpath) / d).relative_to(root_dir)) + "/"
-                            if spec.match_file(rel_d):
-                                continue
-                        except Exception:
-                            pass
-                    filtered_dirs.append(d)
-                dirnames[:] = filtered_dirs
+        file_rows: list = []
+        symbol_rows: list = []
 
-                for filename in filenames:
-                    file_path = Path(dirpath) / filename
-                    suffix = file_path.suffix.lower()
-
-                    if suffix in EXCLUDED_EXTENSIONS or filename.startswith("."):
-                        continue
-
+        for dirpath, dirnames, filenames in os.walk(root_dir):
+            filtered_dirs = []
+            for d in dirnames:
+                if d in EXCLUDED_DIRS or d.startswith("."):
+                    continue
+                if spec:
                     try:
-                        rel_path = str(file_path.relative_to(root_dir))
-                    except ValueError:
-                        rel_path = file_path.name
-
-                    # Check against .gitignore
-                    if spec and spec.match_file(rel_path):
-                        continue
-
-                    try:
-                        stat = file_path.stat()
-                        size = stat.st_size
-                    except OSError:
-                        continue
-
-                    # Skip very large files (> 1MB) for code parsing
-                    if size > 1_048_576:
-                        continue
-
-                    try:
-                        content = file_path.read_text(encoding="utf-8", errors="ignore")
+                        rel_d = str((Path(dirpath) / d).relative_to(root_dir)) + "/"
+                        if spec.match_file(rel_d):
+                            continue
                     except Exception:
-                        continue
+                        pass
+                filtered_dirs.append(d)
+            dirnames[:] = filtered_dirs
 
-                    file_type, language = classify_file_type(file_path)
-                    domain = classify_business_domain(rel_path)
-                    file_id = f"file_{uuid.uuid4().hex[:12]}"
+            for filename in filenames:
+                file_path = Path(dirpath) / filename
+                suffix = file_path.suffix.lower()
 
-                    # Generate brief plain summary placeholder
-                    plain_summary = f"Provides {domain.lower()} logic for the application."
+                if suffix in EXCLUDED_EXTENSIONS or filename.startswith("."):
+                    continue
 
-                    await db.execute(
-                        """
-                        INSERT INTO files (id, project_id, relative_path, file_type, language, size_bytes, plain_summary, business_domain)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (file_id, project_id, rel_path, file_type, language, size, plain_summary, domain),
-                    )
+                try:
+                    rel_path = str(file_path.relative_to(root_dir))
+                except ValueError:
+                    rel_path = file_path.name
 
-                    # Extract deterministic symbols
-                    parser = get_parser_for_file(rel_path, content)
-                    if parser:
-                        symbols = parser.parse(content, rel_path)
-                        for sym in symbols:
-                            sym_id = f"sym_{uuid.uuid4().hex[:12]}"
-                            await db.execute(
-                                """
-                                INSERT INTO symbols (id, file_id, name, symbol_type, start_line, end_line, signature, parameters_json)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                                """,
-                                (sym_id, file_id, sym.name, sym.symbol_type, sym.start_line, sym.end_line, sym.signature, str(sym.parameters)),
+                if spec and spec.match_file(rel_path):
+                    continue
+
+                try:
+                    size = file_path.stat().st_size
+                except OSError:
+                    continue
+
+                # Skip very large files (> 1MB) for code parsing
+                if size > 1_048_576:
+                    continue
+
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    continue
+
+                file_type, language = classify_file_type(file_path)
+                domain = classify_business_domain(rel_path)
+                file_id = f"file_{uuid.uuid4().hex[:12]}"
+                plain_summary = f"Provides {domain.lower()} logic for the application."
+
+                file_rows.append(
+                    (file_id, project_id, rel_path, file_type, language, size, plain_summary, domain)
+                )
+
+                parser = get_parser_for_file(rel_path, content)
+                if parser:
+                    for sym in parser.parse(content, rel_path):
+                        symbol_rows.append(
+                            (
+                                f"sym_{uuid.uuid4().hex[:12]}",
+                                file_id,
+                                sym.name,
+                                sym.symbol_type,
+                                sym.start_line,
+                                sym.end_line,
+                                sym.signature,
+                                str(sym.parameters),
                             )
+                        )
 
+        return file_rows, symbol_rows
+
+    @staticmethod
+    async def _index_directory_files(project_id: str, root_dir: Path) -> None:
+        """Walks directory off the event loop, then bulk-inserts files and symbols in one transaction."""
+        file_rows, symbol_rows = await asyncio.to_thread(
+            IngestionService._collect_rows, project_id, root_dir
+        )
+
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.executemany(
+                """
+                INSERT INTO files (id, project_id, relative_path, file_type, language, size_bytes, plain_summary, business_domain)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                file_rows,
+            )
+            await db.executemany(
+                """
+                INSERT INTO symbols (id, file_id, name, symbol_type, start_line, end_line, signature, parameters_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                symbol_rows,
+            )
             await db.commit()

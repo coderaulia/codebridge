@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import {
   ChevronDown,
@@ -20,17 +21,7 @@ interface DomainNavigatorProps {
 }
 
 export const DomainNavigator: React.FC<DomainNavigatorProps> = ({ onClose, className = '' }) => {
-  const {
-    projects,
-    currentProject,
-    domains,
-    currentFile,
-    scanStatus,
-    selectProject,
-    selectFile,
-    deleteProject,
-    startProjectScan,
-  } = useProjectStore();
+  const { projects, currentProject, domains, currentFile, scanStatus, selectProject, selectFile, deleteProject, startProjectScan } = useProjectStore(useShallow((s) => ({ projects: s.projects, currentProject: s.currentProject, domains: s.domains, currentFile: s.currentFile, scanStatus: s.scanStatus, selectProject: s.selectProject, selectFile: s.selectFile, deleteProject: s.deleteProject, startProjectScan: s.startProjectScan })));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedDomains, setCollapsedDomains] = useState<Record<string, boolean>>({});

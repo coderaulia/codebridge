@@ -2,11 +2,14 @@
 CodeBridge V1 - Hierarchical Summarization Engine
 Produces bottom-up plain-English summaries at the File, Domain, and Project levels.
 """
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 import aiosqlite
 from backend.app.config import DB_PATH
 from backend.app.services.llm_gateway import LLMGateway
+
+SUMMARY_CONCURRENCY = 3
 
 
 class SummarizerService:
@@ -243,16 +246,20 @@ Explain the business purpose and value to customers or operations in clear, non-
 
         total = len(files_to_process)
         count = 0
+        semaphore = asyncio.Semaphore(SUMMARY_CONCURRENCY)
 
-        for f in files_to_process:
-            if progress_callback:
-                progress_callback(count, total, f["relative_path"])
-            try:
-                await self.generate_file_summary(f["id"])
+        async def _process(f) -> None:
+            nonlocal count
+            async with semaphore:
+                if progress_callback:
+                    progress_callback(count, total, f["relative_path"])
+                try:
+                    await self.generate_file_summary(f["id"])
+                except Exception:
+                    return
                 count += 1
-            except Exception:
-                continue
-            if progress_callback:
-                progress_callback(count, total, f["relative_path"])
+                if progress_callback:
+                    progress_callback(count, total, f["relative_path"])
 
+        await asyncio.gather(*(_process(f) for f in files_to_process))
         return count

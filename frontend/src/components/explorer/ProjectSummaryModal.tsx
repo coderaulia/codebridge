@@ -1,7 +1,9 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import { X, Layers, Briefcase, FileCode, GitGraph, RefreshCw, Sparkles } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { MermaidViewer } from '../translation/MermaidViewer';
+import { lazy, Suspense } from 'react';
+const MermaidViewer = lazy(() => import('../translation/MermaidViewer').then((m) => ({ default: m.MermaidViewer })));
 
 interface ProjectSummaryModalProps {
   isOpen: boolean;
@@ -9,7 +11,7 @@ interface ProjectSummaryModalProps {
 }
 
 export const ProjectSummaryModal: React.FC<ProjectSummaryModalProps> = ({ isOpen, onClose }) => {
-  const { currentProject, domains, totalFiles, totalSymbols, macroDiagram, generateSummaries, isLoading } = useProjectStore();
+  const { currentProject, domains, totalFiles, totalSymbols, macroDiagram, generateSummaries, isLoading } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, domains: s.domains, totalFiles: s.totalFiles, totalSymbols: s.totalSymbols, macroDiagram: s.macroDiagram, generateSummaries: s.generateSummaries, isLoading: s.isLoading })));
   const [activeTab, setActiveTab] = useState<'briefing' | 'architecture'>('briefing');
 
   if (!isOpen || !currentProject) return null;
@@ -138,7 +140,9 @@ export const ProjectSummaryModal: React.FC<ProjectSummaryModalProps> = ({ isOpen
                 <span className="text-purple-400 font-mono text-[10px]">Tiered Topology</span>
               </div>
               <div className="h-[420px] rounded-xl overflow-hidden border border-[#30363d]">
-                <MermaidViewer chart={macroDiagram || ''} />
+                <Suspense fallback={<div className="p-8 text-center text-xs text-gray-500">Loading diagram…</div>}>
+<MermaidViewer chart={macroDiagram || ''} />
+</Suspense>
               </div>
             </div>
           )}

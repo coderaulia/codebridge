@@ -1,13 +1,22 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useRef, useState } from 'react';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import 'monaco-editor/esm/vs/basic-languages/monaco.contribution';
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+
+(self as unknown as { MonacoEnvironment: unknown }).MonacoEnvironment = {
+  getWorker: () => new EditorWorker(),
+};
+loader.config({ monaco });
 import type { OnMount } from '@monaco-editor/react';
 import { Sparkles, Code2, Tag, ArrowRight } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useTranslationStore } from '../../stores/useTranslationStore';
 
 export const MonacoViewer: React.FC = () => {
-  const { currentFile, setSelectedRange } = useProjectStore();
-  const { translateSelection, isTranslating } = useTranslationStore();
+  const { currentFile, setSelectedRange } = useProjectStore(useShallow((s) => ({ currentFile: s.currentFile, setSelectedRange: s.setSelectedRange })));
+  const { translateSelection, isTranslating } = useTranslationStore(useShallow((s) => ({ translateSelection: s.translateSelection, isTranslating: s.isTranslating })));
   const editorRef = useRef<any>(null);
 
   const [activeSelection, setActiveSelection] = useState<{

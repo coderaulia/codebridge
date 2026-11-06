@@ -25,6 +25,20 @@ class ScanStatus(BaseModel):
 
 
 _scan_tasks: Dict[str, ScanStatus] = {}
+_background_tasks: set = set()
+
+
+def _spawn_summary(project_id: str) -> None:
+    """Runs executive summary generation in background so ingest responses return immediately."""
+    async def _run():
+        try:
+            await SummarizerService().generate_project_executive_summary(project_id)
+        except Exception:
+            pass
+
+    task = asyncio.create_task(_run())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 class LocalIngestRequest(BaseModel):
@@ -82,9 +96,7 @@ async def ingest_local(req: LocalIngestRequest):
             directory_path=req.directory_path,
             project_name=req.project_name or None,
         )
-        # Trigger background project summary generation
-        summarizer = SummarizerService()
-        await summarizer.generate_project_executive_summary(project_id)
+        _spawn_summary(project_id)
         return {"success": True, "project_id": project_id}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -98,8 +110,7 @@ async def ingest_github(req: GitHubIngestRequest):
             repo_url=req.repo_url,
             github_token=req.github_token or None,
         )
-        summarizer = SummarizerService()
-        await summarizer.generate_project_executive_summary(project_id)
+        _spawn_summary(project_id)
         return {"success": True, "project_id": project_id}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

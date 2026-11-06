@@ -1,22 +1,24 @@
-import { useEffect, useState, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { Header } from './components/layout/Header';
 import { BackendStatusBanner } from './components/layout/BackendStatusBanner';
 import { DomainNavigator } from './components/explorer/DomainNavigator';
-import { MonacoViewer } from './components/editor/MonacoViewer';
 import { TranslationPanel } from './components/translation/TranslationPanel';
-import { IngestModal } from './components/layout/IngestModal';
-import { SettingsModal } from './components/layout/SettingsModal';
-import { ProjectSummaryModal } from './components/explorer/ProjectSummaryModal';
-import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
-import { DiffTranslatorModal } from './components/diff/DiffTranslatorModal';
-import { ExportBriefingModal } from './components/export/ExportBriefingModal';
 import { useProjectStore } from './stores/useProjectStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { Code2, Sparkles } from 'lucide-react';
 
+const IngestModal = lazy(() => import('./components/layout/IngestModal').then((m) => ({ default: m.IngestModal })));
+const SettingsModal = lazy(() => import('./components/layout/SettingsModal').then((m) => ({ default: m.SettingsModal })));
+const ProjectSummaryModal = lazy(() => import('./components/explorer/ProjectSummaryModal').then((m) => ({ default: m.ProjectSummaryModal })));
+const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard').then((m) => ({ default: m.OnboardingWizard })));
+const DiffTranslatorModal = lazy(() => import('./components/diff/DiffTranslatorModal').then((m) => ({ default: m.DiffTranslatorModal })));
+const ExportBriefingModal = lazy(() => import('./components/export/ExportBriefingModal').then((m) => ({ default: m.ExportBriefingModal })));
+const MonacoViewer = lazy(() => import('./components/editor/MonacoViewer').then((m) => ({ default: m.MonacoViewer })));
+
 export function App() {
-  const { fetchProjects } = useProjectStore();
-  const { loadSettings } = useSettingsStore();
+  const { fetchProjects } = useProjectStore(useShallow((s) => ({ fetchProjects: s.fetchProjects })));
+  const { loadSettings } = useSettingsStore(useShallow((s) => ({ loadSettings: s.loadSettings })));
 
   const [isIngestOpen, setIsIngestOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -36,6 +38,7 @@ export function App() {
   });
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+  const translationWidthRef = useRef(0);
 
   // Mobile mode tab switch (for screens < 768px)
   const [mobileTab, setMobileTab] = useState<'editor' | 'translation'>('editor');
@@ -75,14 +78,17 @@ export function App() {
       const minWidth = 280;
       const maxWidth = Math.max(minWidth, window.innerWidth - (isSidebarOpen ? 340 : 100) - 260);
       const clamped = Math.max(minWidth, Math.min(newWidth, maxWidth));
+      translationWidthRef.current = clamped;
       setTranslationWidth(clamped);
-      localStorage.setItem('codebridge_translation_width', clamped.toString());
     };
 
     const handleMouseUp = () => {
       if (isDraggingRef.current) {
         setIsDragging(false);
         isDraggingRef.current = false;
+        try {
+          if (translationWidthRef.current > 0) localStorage.setItem('codebridge_translation_width', translationWidthRef.current.toString());
+        } catch { /* ignore */ }
       }
     };
 
@@ -155,7 +161,9 @@ export function App() {
 
         {/* Column 2: Interactive Monaco Code & Schema Viewer (Takes remaining flex space) */}
         <div className={`flex-1 min-w-0 h-full flex flex-col ${mobileTab === 'translation' ? 'hidden md:flex' : 'flex'}`}>
-          <MonacoViewer />
+          <Suspense fallback={<div className="p-6 text-xs text-gray-500">Loading editor…</div>}>
+            <MonacoViewer />
+          </Suspense>
         </div>
 
         {/* Resizable Splitter Handle between Column 2 and Column 3 (Desktop/Tablet) */}
@@ -183,12 +191,14 @@ export function App() {
       </main>
 
       {/* Modals & Dialogs */}
+      <Suspense fallback={null}>
       <IngestModal isOpen={isIngestOpen} onClose={() => setIsIngestOpen(false)} />
       <SettingsModal />
       <ProjectSummaryModal isOpen={isSummaryOpen} onClose={() => setIsSummaryOpen(false)} />
       <OnboardingWizard isOpen={isOnboardingOpen} onClose={() => setIsOnboardingOpen(false)} />
       <DiffTranslatorModal isOpen={isDiffOpen} onClose={() => setIsDiffOpen(false)} />
       <ExportBriefingModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
+      </Suspense>
     </div>
   );
 }

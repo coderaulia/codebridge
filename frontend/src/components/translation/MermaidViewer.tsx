@@ -2,18 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ZoomIn, ZoomOut, RotateCcw, AlertCircle } from 'lucide-react';
 
-interface MermaidViewerProps {
-  chart: string;
-}
-
-export const MermaidViewer: React.FC<MermaidViewerProps> = ({ chart }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [svgContent, setSvgContent] = useState<string>('');
-  const [renderError, setRenderError] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    mermaid.initialize({
+mermaid.initialize({
       startOnLoad: false,
       theme: 'dark',
       securityLevel: 'loose',
@@ -28,8 +17,17 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({ chart }) => {
         secondaryColor: '#1e293b',
         tertiaryColor: '#0f172a',
       },
-    });
-  }, []);
+});
+
+interface MermaidViewerProps {
+  chart: string;
+}
+
+export const MermaidViewer: React.FC<MermaidViewerProps> = ({ chart }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [svgContent, setSvgContent] = useState<string>('');
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     if (!chart || !chart.trim()) {

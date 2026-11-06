@@ -1,9 +1,10 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 export const BackendStatusBanner: React.FC = () => {
-  const { isBackendConnected, checkBackendHealth } = useProjectStore();
+  const { isBackendConnected, checkBackendHealth } = useProjectStore(useShallow((s) => ({ isBackendConnected: s.isBackendConnected, checkBackendHealth: s.checkBackendHealth })));
   const [retrying, setRetrying] = useState(false);
 
   if (isBackendConnected) return null;

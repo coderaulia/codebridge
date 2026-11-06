@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useEffect, useState } from 'react';
 import {
   X,
@@ -17,7 +18,7 @@ interface ExportBriefingModalProps {
 }
 
 export const ExportBriefingModal: React.FC<ExportBriefingModalProps> = ({ isOpen, onClose }) => {
-  const { currentProject } = useProjectStore();
+  const { currentProject } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject })));
   const [markdownContent, setMarkdownContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);

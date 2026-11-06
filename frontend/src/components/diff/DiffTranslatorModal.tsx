@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import {
   X,
@@ -37,7 +38,7 @@ interface DiffResult {
 }
 
 export const DiffTranslatorModal: React.FC<DiffTranslatorModalProps> = ({ isOpen, onClose }) => {
-  const { currentProject } = useProjectStore();
+  const { currentProject } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject })));
   const [diffText, setDiffText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingLocal, setIsFetchingLocal] = useState(false);

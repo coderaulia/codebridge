@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React, { useState } from 'react';
 import {
   X,
@@ -25,8 +26,8 @@ interface OnboardingWizardProps {
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<number>(1);
-  const { ingestLocal, ingestGithub, isLoading } = useProjectStore();
-  const { settings, updateSettings, testConnection, isTesting, testResult } = useSettingsStore();
+  const { ingestLocal, ingestGithub, isLoading } = useProjectStore(useShallow((s) => ({ ingestLocal: s.ingestLocal, ingestGithub: s.ingestGithub, isLoading: s.isLoading })));
+  const { settings, updateSettings, testConnection, isTesting, testResult } = useSettingsStore(useShallow((s) => ({ settings: s.settings, updateSettings: s.updateSettings, testConnection: s.testConnection, isTesting: s.isTesting, testResult: s.testResult })));
 
   const [isFolderBrowserOpen, setIsFolderBrowserOpen] = useState(false);
   const [localPathInput, setLocalPathInput] = useState('');

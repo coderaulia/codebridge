@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import React from 'react';
 import {
   FileText,
@@ -16,7 +17,8 @@ import {
 } from 'lucide-react';
 import { useTranslationStore } from '../../stores/useTranslationStore';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { MermaidViewer } from './MermaidViewer';
+import { lazy, Suspense } from 'react';
+const MermaidViewer = lazy(() => import('./MermaidViewer').then((m) => ({ default: m.MermaidViewer })));
 import { PlainEnglishChat } from './PlainEnglishChat';
 
 interface TranslationPanelProps {
@@ -25,8 +27,8 @@ interface TranslationPanelProps {
 }
 
 export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, className = '' }) => {
-  const { translation, streamingText, isTranslating, activeTab, setActiveTab, translateSelection } = useTranslationStore();
-  const { selectedRange, currentFile } = useProjectStore();
+  const { translation, streamingText, isTranslating, activeTab, setActiveTab, translateSelection } = useTranslationStore(useShallow((s) => ({ translation: s.translation, streamingText: s.streamingText, isTranslating: s.isTranslating, activeTab: s.activeTab, setActiveTab: s.setActiveTab, translateSelection: s.translateSelection })));
+  const { selectedRange, currentFile } = useProjectStore(useShallow((s) => ({ selectedRange: s.selectedRange, currentFile: s.currentFile })));
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -213,7 +215,9 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({ width, class
             </p>
           </div>
         ) : activeTab === 'diagram' ? (
-          <MermaidViewer chart={translation?.mermaid_diagram || ''} />
+          <Suspense fallback={<div className="p-8 text-center text-xs text-gray-500">Loading diagram…</div>}>
+<MermaidViewer chart={translation?.mermaid_diagram || ''} />
+</Suspense>
         ) : activeTab === 'raw' ? (
           <PlainEnglishChat />
         ) : (

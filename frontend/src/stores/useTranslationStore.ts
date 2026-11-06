@@ -88,6 +88,15 @@ export const useTranslationStore = create<TranslationState>((set) => ({
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      let pending = '';
+      let flushScheduled = false;
+      const flush = () => {
+        flushScheduled = false;
+        if (!pending) return;
+        const text = pending;
+        pending = '';
+        set((state) => ({ streamingText: state.streamingText + text }));
+      };
 
       while (true) {
         const { value, done } = await reader.read();
@@ -106,7 +115,11 @@ export const useTranslationStore = create<TranslationState>((set) => ({
           try {
             const parsed = JSON.parse(dataStr);
             if (parsed.event === 'chunk' && parsed.content) {
-              set((state) => ({ streamingText: state.streamingText + parsed.content }));
+              pending += parsed.content;
+              if (!flushScheduled) {
+                flushScheduled = true;
+                requestAnimationFrame(flush);
+              }
             } else if (parsed.event === 'cached' && parsed.data) {
               set({
                 translation: parsed.data,
@@ -127,6 +140,7 @@ export const useTranslationStore = create<TranslationState>((set) => ({
         }
       }
 
+      flush();
       set({ isTranslating: false });
     } catch (err: any) {
       set({ error: err.message, isTranslating: false });

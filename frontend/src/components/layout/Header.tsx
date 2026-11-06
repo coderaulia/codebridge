@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { Network, Settings, Plus, Layers, HelpCircle, PanelLeft, GitPullRequest, FileDown } from 'lucide-react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -21,8 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   onToggleSidebar,
 }) => {
-  const { settings, setSettingsOpen } = useSettingsStore();
-  const { currentProject, totalFiles } = useProjectStore();
+  const { settings, setSettingsOpen } = useSettingsStore(useShallow((s) => ({ settings: s.settings, setSettingsOpen: s.setSettingsOpen })));
+  const { currentProject, totalFiles } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, totalFiles: s.totalFiles })));
 
   return (
     <header className="h-14 bg-[#161b22] border-b border-[#30363d] px-3 sm:px-4 flex items-center justify-between select-none gap-2">
